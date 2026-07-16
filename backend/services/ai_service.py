@@ -15,7 +15,7 @@ def _clean_html(html: str) -> str:
     return html.strip()
 
 
-def _call_llm(system_prompt: str, user_prompt: str, response_json=True):
+def _call_llm(system_prompt: str, user_prompt: str, response_json=True, enable_search=False):
     """统一调用大模型，优先 OpenAI，失败后尝试通义千问，都失败则返回 None"""
     openai_key = current_app.config.get('OPENAI_API_KEY', '').strip()
     dashscope_key = current_app.config.get('DASHSCOPE_API_KEY', '').strip()
@@ -27,7 +27,7 @@ def _call_llm(system_prompt: str, user_prompt: str, response_json=True):
         current_app.logger.warning('[AI Service] OpenAI 调用失败，尝试通义千问')
 
     if dashscope_key:
-        result = _call_qwen(system_prompt, user_prompt, response_json)
+        result = _call_qwen(system_prompt, user_prompt, response_json, enable_search)
         if result is not None:
             return result
         current_app.logger.warning('[AI Service] 通义千问调用失败')
@@ -64,7 +64,7 @@ def _call_openai(system_prompt: str, user_prompt: str, response_json: bool):
         return None
 
 
-def _call_qwen(system_prompt: str, user_prompt: str, response_json: bool):
+def _call_qwen(system_prompt: str, user_prompt: str, response_json: bool, enable_search=False):
     try:
         url = 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions'
         headers = {
@@ -79,10 +79,16 @@ def _call_qwen(system_prompt: str, user_prompt: str, response_json: bool):
                 {'role': 'user', 'content': user_prompt},
             ],
         }
+        if enable_search:
+            body['enable_search'] = True
+            body['search_settings'] = {
+                'result_type': 'references',
+                'max_results': 5,
+            }
         if response_json:
             body['response_format'] = {'type': 'json_object'}
-        current_app.logger.info(f'[Qwen] 正在调用 API，模型: {current_app.config["QWEN_MODEL"]}')
-        resp = requests.post(url, headers=headers, json=body, timeout=60)
+        current_app.logger.info(f'[Qwen] 正在调用 API，模型: {current_app.config["QWEN_MODEL"]}, 联网搜索: {enable_search}')
+        resp = requests.post(url, headers=headers, json=body, timeout=120)
         resp.raise_for_status()
         content = resp.json()['choices'][0]['message']['content']
         current_app.logger.info(f'[Qwen] 调用成功，返回内容长度: {len(content)}')
@@ -114,18 +120,24 @@ def generate_outline(keywords: str):
 
 
 def find_materials(topic: str):
-    """查找与某主题相关的背景资料、名言、数据"""
-    system = """你是一位写作研究员。请为给定的主题提供写作素材卡片：
-1. background: 3条左右的背景常识/历史脉络（事实性内容）
+    """查找与某主题相关的背景资料、名言、数据（使用联网搜索）"""
+    system = """你是一位专业的写作研究员，具备联网搜索能力。请为给定的主题提供真实、可靠的写作素材卡片：
+1. background: 3-5条真实的背景常识/历史脉络/最新动态（基于搜索结果）
 2. quotes: 2-3条可迁移引用的名言或观点，每条为 {"text":"...", "source":"..."}
-3. data_points: 2-3个带数值的数据点，每条为 {"value":"约XX%", "desc":"...描述..."}
-所有数据请加上「建议自行核实」的意识，数据可以是典型调研方向的占位。
-严格返回 JSON，键名就是 background、quotes、data_points。"""
-    user = f"主题：{topic}\n请输出该主题的写作素材卡片。"
-    result = _call_llm(system, user)
+3. data_points: 2-3个带数值的真实数据点，每条为 {"value":"约XX%", "desc":"...描述..."}
+4. references: 搜索到的来源链接列表，每条为 {"title":"...", "url":"...", "summary":"..."}
+
+注意：
+- 所有内容必须基于真实搜索结果，不能编造
+- 数据必须准确，注明来源
+- 如果搜索不到相关内容，请明确说明
+- 严格返回 JSON，键名就是 background、quotes、data_points、references"""
+    user = f"主题：{topic}\n请搜索并整理该主题的写作素材卡片，包括最新的背景信息、相关名言、数据统计和参考来源链接。"
+    result = _call_llm(system, user, enable_search=True)
     if result:
         return result
-    return None
+    current_app.logger.warning('[AI Service] 联网搜索失败，使用本地知识库')
+    return _mock_materials(topic)
 
 
 def expression_references(meaning: str):
@@ -197,6 +209,102 @@ def analyze_article(title: str, content: str):
 }
 suggestions 至少3条，每条具体、可操作。"""
     user = f"文章标题：{title}\n\n正文内容：\n{content}\n\n请输出分析结果。"
+    result = _call_llm(system, user)
+    if result:
+        return result
+    return None
+
+
+def analyze_tone(content: str):
+    """分析文章的语气风格和情绪基调"""
+    content = _clean_html(content)
+    system = """你是一位专业的写作风格分析师。请分析用户文章的语气特征。
+返回 JSON：
+{
+  "tone": "整体语气描述（如：温暖亲切、冷静客观、深沉思考、轻松幽默等）",
+  "emotion": ["情绪1", "情绪2", "情绪3"],
+  "intensity": 0-10的数值（情绪强度）,
+  "suggestions": [
+    {"title": "保持当前风格", "detail": "在哪一段体现得好，建议继续保持"},
+    {"title": "增加层次感", "detail": "建议在哪些地方加入不同情绪的对比"},
+    {"title": "调整节奏", "detail": "建议如何调整句子长短来配合语气"}
+  ],
+  "examples": ["当前文章中表现某种语气的例句"]
+}"""
+    user = f"请分析以下文章的语气风格和情绪基调：\n\n{content}"
+    result = _call_llm(system, user)
+    if result:
+        return result
+    return None
+
+
+def check_logic(content: str):
+    """检查文章段落间的逻辑连贯性"""
+    content = _clean_html(content)
+    system = """你是一位逻辑分析专家。请检查用户文章段落间的逻辑连贯性。
+返回 JSON：
+{
+  "overall_score": 0-10的数值（整体逻辑评分）,
+  "structure": "文章结构分析（总分结构/时间顺序/空间顺序/对比论证等）",
+  "strong_points": ["逻辑紧密的段落或句子"],
+  "issues": [
+    {"location": "第X段到第Y段", "problem": "具体问题描述", "suggestion": "改进建议"}
+  ],
+  "transitions": ["建议添加的过渡句或过渡词"]
+}"""
+    user = f"请检查以下文章段落间的逻辑连贯性：\n\n{content}"
+    result = _call_llm(system, user)
+    if result:
+        return result
+    return None
+
+
+def vocabulary_upgrade(content: str):
+    """词汇升级建议：提供更精准的词汇替换"""
+    content = _clean_html(content)
+    system = """你是一位词汇专家。请分析用户文章中的词汇使用，提供更精准、更有表现力的替换建议。
+返回 JSON：
+{
+  "replacements": [
+    {"original": "原词/短语", "context": "原句", "suggestions": ["建议词1", "建议词2", "建议词3"], "reason": "替换理由"}
+  ],
+  "patterns": ["当前文章中过度使用的词汇模式"],
+  "enhancements": ["可以增加的修辞手法或表达技巧"]
+}
+注意：只提供建议，不要直接改写文章。"""
+    user = f"请分析以下文章的词汇使用，提供更精准的词汇替换建议：\n\n{content}"
+    result = _call_llm(system, user)
+    if result:
+        return result
+    return None
+
+
+def suggest_open_close(title: str, content: str):
+    """开头结尾优化建议"""
+    content = _clean_html(content)
+    system = """你是一位写作导师。请为用户的文章提供开头和结尾的优化建议。
+返回 JSON：
+{
+  "opening": {
+    "current_analysis": "对当前开头的分析",
+    "suggestions": [
+      {"type": "开门见山式", "example": "简短的示例开头"},
+      {"type": "场景引入式", "example": "简短的示例开头"},
+      {"type": "问题引入式", "example": "简短的示例开头"}
+    ]
+  },
+  "closing": {
+    "current_analysis": "对当前结尾的分析",
+    "suggestions": [
+      {"type": "升华主题式", "example": "简短的示例结尾"},
+      {"type": "首尾呼应式", "example": "简短的示例结尾"},
+      {"type": "留白式", "example": "简短的示例结尾"}
+    ]
+  },
+  "connections": ["首尾呼应的建议"]
+}
+注意：只提供建议和简短示例，不要直接写完整段落。"""
+    user = f"文章标题：{title}\n\n当前正文：\n{content}\n\n请提供开头和结尾的优化建议。"
     result = _call_llm(system, user)
     if result:
         return result

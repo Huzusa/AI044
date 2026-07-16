@@ -133,3 +133,92 @@ def api_analyze_article():
     except Exception as e:
         current_app.logger.exception(e)
         return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@ai_bp.route('/analyze-tone', methods=['POST'])
+def api_analyze_tone():
+    """
+    POST /api/ai/analyze-tone
+    Body: { content }
+    分析文章的语气风格和情绪基调
+    """
+    try:
+        body = request.get_json(force=True, silent=True) or {}
+        content = (body.get('content') or '').strip()
+        if not content:
+            return jsonify({'ok': False, 'error': '内容不能为空'}), 400
+
+        tone = ai_service.analyze_tone(content)
+        if tone is None:
+            return jsonify({'ok': False, 'error': 'AI 服务暂时不可用，请检查后端日志'}), 503
+        return jsonify({'ok': True, 'tone': tone})
+    except Exception as e:
+        current_app.logger.exception(e)
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@ai_bp.route('/check-logic', methods=['POST'])
+def api_check_logic():
+    """
+    POST /api/ai/check-logic
+    Body: { content }
+    检查文章段落间的逻辑连贯性
+    """
+    try:
+        body = request.get_json(force=True, silent=True) or {}
+        content = (body.get('content') or '').strip()
+        if not content:
+            return jsonify({'ok': False, 'error': '内容不能为空'}), 400
+
+        logic = ai_service.check_logic(content)
+        if logic is None:
+            return jsonify({'ok': False, 'error': 'AI 服务暂时不可用，请检查后端日志'}), 503
+        return jsonify({'ok': True, 'logic': logic})
+    except Exception as e:
+        current_app.logger.exception(e)
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@ai_bp.route('/vocabulary-upgrade', methods=['POST'])
+def api_vocabulary_upgrade():
+    """
+    POST /api/ai/vocabulary-upgrade
+    Body: { content }
+    词汇升级建议：提供更精准的词汇替换
+    """
+    try:
+        body = request.get_json(force=True, silent=True) or {}
+        content = (body.get('content') or '').strip()
+        if not content:
+            return jsonify({'ok': False, 'error': '内容不能为空'}), 400
+
+        upgrade = ai_service.vocabulary_upgrade(content)
+        if upgrade is None:
+            return jsonify({'ok': False, 'error': 'AI 服务暂时不可用，请检查后端日志'}), 503
+        return jsonify({'ok': True, 'upgrade': upgrade})
+    except Exception as e:
+        current_app.logger.exception(e)
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@ai_bp.route('/suggest-open-close', methods=['POST'])
+def api_suggest_open_close():
+    """
+    POST /api/ai/suggest-open-close
+    Body: { title, content }
+    开头结尾优化建议
+    """
+    try:
+        body = request.get_json(force=True, silent=True) or {}
+        title = (body.get('title') or '').strip()
+        content = (body.get('content') or '').strip()
+        if not title or not content:
+            return jsonify({'ok': False, 'error': '标题和正文不能为空'}), 400
+
+        result = ai_service.suggest_open_close(title, content)
+        if result is None:
+            return jsonify({'ok': False, 'error': 'AI 服务暂时不可用，请检查后端日志'}), 503
+        return jsonify({'ok': True, 'result': result})
+    except Exception as e:
+        current_app.logger.exception(e)
+        return jsonify({'ok': False, 'error': str(e)}), 500

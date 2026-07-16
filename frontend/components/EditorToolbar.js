@@ -12,8 +12,8 @@ const ToolbarButton = ({ onClick, isActive, disabled, children, title }) => (
     title={title}
     className={`p-2 rounded-md transition-all duration-150 flex items-center justify-center
       ${isActive 
-        ? 'bg-accent-100 text-accent-700 shadow-sm' 
-        : 'text-ink-600 hover:bg-ink-100 hover:text-ink-800'
+        ? 'bg-blue-100 text-blue-600 shadow-sm' 
+        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'
       }
       ${disabled ? 'opacity-40 cursor-not-allowed' : ''}
       hover:scale-105 active:scale-95`}
@@ -24,7 +24,7 @@ const ToolbarButton = ({ onClick, isActive, disabled, children, title }) => (
 )
 
 const Divider = () => (
-  <div className="w-px h-6 bg-ink-200 mx-1" />
+  <div className="w-px h-6 bg-gray-200 mx-1" />
 )
 
 export default function EditorToolbar({ editor }) {
@@ -35,7 +35,7 @@ export default function EditorToolbar({ editor }) {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-0.5 p-2 bg-ink-50 border border-ink-200 rounded-t-lg
+    <div className="flex flex-wrap items-center gap-0.5 p-2 bg-gray-50 border border-gray-200 rounded-t-lg
       backdrop-blur-sm sticky top-0 z-10 shadow-sm">
       
       <ToolbarButton 

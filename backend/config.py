@@ -8,12 +8,16 @@ load_dotenv(os.path.join(_basedir, '.env'))
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'inkscribe-dev-secret-change-me')
 
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        'DATABASE_URL',
-        'sqlite:///' + os.path.join(_basedir, 'instance', 'inkscribe.db')
-    )
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', '')
+    if not SQLALCHEMY_DATABASE_URI:
+        SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(_basedir, 'instance', 'inkscribe.db')
+    
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = {'connect_args': {'check_same_thread': False}}
+    
+    if SQLALCHEMY_DATABASE_URI.startswith('sqlite'):
+        SQLALCHEMY_ENGINE_OPTIONS = {'connect_args': {'check_same_thread': False}}
+    else:
+        SQLALCHEMY_ENGINE_OPTIONS = {}
 
     JSON_AS_ASCII = False
     JSONIFY_PRETTYPRINT_REGULAR = True
