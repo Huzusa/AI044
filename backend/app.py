@@ -1,12 +1,14 @@
 import os
 import logging
-from flask import Flask, jsonify
+from flask import Flask, jsonify, current_app
 from flask_cors import CORS
+from flask_jwt_extended import JWTManager
 
 from config import Config
-from models import db, Article
+from models import db, Article, User
 from routes.articles import articles_bp
 from routes.ai import ai_bp
+from routes.auth import auth_bp
 
 
 def create_app():
@@ -15,8 +17,6 @@ def create_app():
 
     app.json.ensure_ascii = False
     app.json.sort_keys = False
-
-    os.makedirs(os.path.join(app.root_path, 'instance'), exist_ok=True)
 
     logging.basicConfig(
         level=logging.INFO,
@@ -31,11 +31,14 @@ def create_app():
     )
 
     db.init_app(app)
+    JWTManager(app)
 
     with app.app_context():
+        _create_database_if_not_exists()
         db.create_all()
         _seed_demo_data_if_empty()
 
+    app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(articles_bp, url_prefix='/api/articles')
     app.register_blueprint(ai_bp, url_prefix='/api/ai')
 
@@ -60,13 +63,53 @@ def create_app():
     return app
 
 
+def _create_database_if_not_exists():
+    from sqlalchemy import create_engine, text
+    db_name = current_app.config['MYSQL_DB']
+    host = current_app.config['MYSQL_HOST']
+    port = current_app.config['MYSQL_PORT']
+    user = current_app.config['MYSQL_USER']
+    password = current_app.config['MYSQL_PASSWORD']
+    mysql_ssl_ca = current_app.config.get('MYSQL_SSL_CA', '')
+    
+    connect_args = {}
+    if mysql_ssl_ca:
+        import os
+        ssl_cert_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), mysql_ssl_ca)
+        connect_args['ssl'] = {'ca': ssl_cert_path}
+    
+    engine = create_engine(
+        f'mysql+pymysql://{user}:{password}@{host}:{port}/',
+        connect_args=connect_args
+    )
+    
+    with engine.connect() as conn:
+        conn.execute(text(f"CREATE DATABASE IF NOT EXISTS {db_name} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
+        conn.commit()
+    print(f'✓ 数据库 {db_name} 已确保存在')
+
+
 def _seed_demo_data_if_empty():
-    """首次启动时插入 2 篇演示文章，便于本地预览"""
+    if User.query.count() == 0:
+        demo_user = User(username='demo', email='demo@example.com')
+        demo_user.set_password('demo123')
+        db.session.add(demo_user)
+        db.session.commit()
+        print('✓ 已创建演示用户（用户名: demo, 密码: demo123）')
+
     if Article.query.count() > 0:
         return
 
+    demo_user = User.query.filter_by(username='demo').first()
+    if not demo_user:
+        demo_user = User(username='demo')
+        demo_user.set_password('demo123')
+        db.session.add(demo_user)
+        db.session.commit()
+
     demo = [
         Article(
+            user_id=demo_user.id,
             title='关于夏天的十个碎片记忆',
             content='午后三点的阳光穿过梧桐叶，在课桌上投下斑驳的光影。电风扇吱呀地转着，粉笔灰在光柱里缓缓浮动。\n\n我趴在桌上，盯着黑板右上角倒计时牌上的数字，心里有一种说不清道不明的情绪。',
             author='盛夏光年',
@@ -79,6 +122,7 @@ def _seed_demo_data_if_empty():
             view_count=42,
         ),
         Article(
+            user_id=demo_user.id,
             title='Next.js 14 App Router 迁移踩坑记录',
             content='最近在重构项目时全面转向了 App Router，相较于 Pages Router 确实有很多理念上的不同。\n\n这篇笔记记录了我遇到的 8 个典型问题，包括服务端组件通信、缓存策略、动态路由等，以及对应的实际解决方案。',
             author='代码笔记君',

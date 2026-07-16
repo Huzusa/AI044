@@ -6,18 +6,31 @@ load_dotenv(os.path.join(_basedir, '.env'))
 
 
 class Config:
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'inkscribe-dev-secret-change-me')
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'inkscribe-dev-secret-key-change-me-123456')
+    JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'inkscribe-dev-secret-key-change-me-123456')
 
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', '')
-    if not SQLALCHEMY_DATABASE_URI:
-        SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(_basedir, 'instance', 'inkscribe.db')
-    
+    MYSQL_HOST = os.environ.get('MYSQL_HOST', 'localhost')
+    MYSQL_PORT = int(os.environ.get('MYSQL_PORT', 3306))
+    MYSQL_USER = os.environ.get('MYSQL_USER', 'root')
+    MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD', '')
+    MYSQL_DB = os.environ.get('MYSQL_DB', 'inkscribe')
+
+    SQLALCHEMY_DATABASE_URI = os.environ.get(
+        'DATABASE_URL',
+        f'mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}'
+    )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
-    if SQLALCHEMY_DATABASE_URI.startswith('sqlite'):
-        SQLALCHEMY_ENGINE_OPTIONS = {'connect_args': {'check_same_thread': False}}
-    else:
-        SQLALCHEMY_ENGINE_OPTIONS = {}
+    mysql_ssl_ca = os.environ.get('MYSQL_SSL_CA', '')
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_pre_ping': True,
+        'pool_recycle': 3600,
+    }
+    if mysql_ssl_ca:
+        SSL_CERT_PATH = os.path.join(_basedir, mysql_ssl_ca)
+        SQLALCHEMY_ENGINE_OPTIONS['connect_args'] = {
+            'ssl': {'ca': SSL_CERT_PATH}
+        }
 
     JSON_AS_ASCII = False
     JSONIFY_PRETTYPRINT_REGULAR = True
