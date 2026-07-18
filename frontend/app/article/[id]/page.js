@@ -97,6 +97,10 @@ export default function ArticlePage() {
           <PenLine className="w-4 h-4" />
           写新文章
         </Link>
+        <Link href={`/write?id=${article.id}`} className="btn-primary !px-4 !py-1.5 text-sm">
+          <PenLine className="w-4 h-4" />
+          编辑文章
+        </Link>
       </header>
 
       <article className="space-y-6">

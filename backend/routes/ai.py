@@ -133,3 +133,72 @@ def api_analyze_article():
     except Exception as e:
         current_app.logger.exception(e)
         return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@ai_bp.route('/generate-titles', methods=['POST'])
+def api_generate_titles():
+    """
+    POST /api/ai/generate-titles
+    Body: { title, content }
+    根据文章内容生成5个备选标题
+    """
+    try:
+        body = request.get_json(force=True, silent=True) or {}
+        title = (body.get('title') or '').strip()
+        content = (body.get('content') or '').strip()
+        if not content:
+            return jsonify({'ok': False, 'error': '正文不能为空'}), 400
+
+        titles = ai_service.generate_titles(title, content)
+        if titles is None:
+            return jsonify({'ok': False, 'error': 'AI 服务暂时不可用，请检查后端日志'}), 503
+        return jsonify({'ok': True, 'titles': titles})
+    except Exception as e:
+        current_app.logger.exception(e)
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@ai_bp.route('/polish-sentence', methods=['POST'])
+def api_polish_sentence():
+    """
+    POST /api/ai/polish-sentence
+    Body: { sentence, context }
+    针对一句话提供润色建议（不改变原意，只优化表达）
+    """
+    try:
+        body = request.get_json(force=True, silent=True) or {}
+        sentence = (body.get('sentence') or '').strip()
+        context = (body.get('context') or '').strip()
+        if not sentence:
+            return jsonify({'ok': False, 'error': '句子不能为空'}), 400
+
+        suggestions = ai_service.polish_sentence(sentence, context)
+        if suggestions is None:
+            return jsonify({'ok': False, 'error': 'AI 服务暂时不可用，请检查后端日志'}), 503
+        return jsonify({'ok': True, 'suggestions': suggestions})
+    except Exception as e:
+        current_app.logger.exception(e)
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@ai_bp.route('/continue-writing', methods=['POST'])
+def api_continue_writing():
+    """
+    POST /api/ai/continue-writing
+    Body: { content, context }
+    根据已写内容续写一段（不超过150字）
+    """
+    try:
+        body = request.get_json(force=True, silent=True) or {}
+        content = (body.get('content') or '').strip()
+        context = (body.get('context') or '').strip()
+        if not content:
+            return jsonify({'ok': False, 'error': '内容不能为空'}), 400
+
+        continuation = ai_service.continue_writing(content, context)
+        if continuation is None:
+            return jsonify({'ok': False, 'error': 'AI 服务暂时不可用，请检查后端日志'}), 503
+        return jsonify({'ok': True, 'continuation': continuation})
+    except Exception as e:
+        current_app.logger.exception(e)
+        return jsonify({'ok': False, 'error': str(e)}), 500

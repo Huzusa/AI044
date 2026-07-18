@@ -17,7 +17,12 @@ import {
   deepQuestions as apiDeepQuestions,
   inspirationFragments as apiInspirationFragments,
   analyzeArticle as apiAnalyzeArticle,
-  createArticle as apiCreateArticle
+  generateTitles as apiGenerateTitles,
+  polishSentence as apiPolishSentence,
+  continueWriting as apiContinueWriting,
+  createArticle as apiCreateArticle,
+  updateArticle as apiUpdateArticle,
+  getArticle as apiGetArticle
 } from '@/utils/api'
 
 const stripHtml = (html) => {
@@ -30,6 +35,8 @@ const stripHtml = (html) => {
 export default function WritePage() {
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
+  const [articleId, setArticleId] = useState(null)
+  const [isEditing, setIsEditing] = useState(false)
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [author, setAuthor] = useState('')
@@ -50,6 +57,9 @@ export default function WritePage() {
     questions: { loading: false, result: null, expanded: false },
     inspiration: { loading: false, result: null, expanded: false },
     analyze: { loading: false, result: null, expanded: false },
+    titles: { loading: false, result: null, expanded: false },
+    polish: { loading: false, result: null, expanded: false },
+    continue: { loading: false, result: null, expanded: false },
   })
 
   useEffect(() => {
@@ -65,6 +75,34 @@ export default function WritePage() {
     window.addEventListener('editor-text-selected', handleSelection)
     return () => window.removeEventListener('editor-text-selected', handleSelection)
   }, [])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const id = params.get('id')
+      if (id && user) {
+        loadArticle(id)
+      }
+    }
+  }, [user])
+
+  const loadArticle = async (id) => {
+    try {
+      const data = await apiGetArticle(id)
+      if (data.ok && data.article) {
+        const article = data.article
+        setArticleId(article.id)
+        setIsEditing(true)
+        setTitle(article.title)
+        setContent(article.content)
+        setAuthor(article.author)
+        setSavedTags(article.ai_tags || [])
+        setSavedSummary(article.ai_summary || '')
+      }
+    } catch (e) {
+      console.error('加载文章失败:', e)
+    }
+  }
 
   const textContent = stripHtml(content)
 
@@ -199,21 +237,92 @@ export default function WritePage() {
     }
   }
 
+  const generateTitles = async () => {
+    if (!title && !textContent.trim()) {
+      alert('请先输入标题或正文')
+      return
+    }
+    updateSection('titles', { loading: true, result: null })
+    try {
+      const { data } = await apiGenerateTitles(title, textContent)
+      if (data.ok) {
+        updateSection('titles', { loading: false, result: data.titles, expanded: true })
+      } else {
+        updateSection('titles', { loading: false, result: null, expanded: true })
+        alert('AI 服务暂时不可用：' + data.error)
+      }
+    } catch {
+      updateSection('titles', { loading: false, result: null })
+      alert('网络错误：无法连接到后端服务')
+    }
+  }
+
+  const polishSentence = async () => {
+    const target = selectedSection || textContent.slice(0, 100)
+    if (!target.trim()) {
+      alert('请先选中一段文字，或至少输入一些内容')
+      return
+    }
+    updateSection('polish', { loading: true, result: null })
+    try {
+      const { data } = await apiPolishSentence(target, textContent)
+      if (data.ok) {
+        updateSection('polish', { loading: false, result: data.suggestions, expanded: true })
+      } else {
+        updateSection('polish', { loading: false, result: null, expanded: true })
+        alert('AI 服务暂时不可用：' + data.error)
+      }
+    } catch {
+      updateSection('polish', { loading: false, result: null })
+      alert('网络错误：无法连接到后端服务')
+    }
+  }
+
+  const continueWriting = async () => {
+    if (!textContent.trim()) {
+      alert('请先写一些内容')
+      return
+    }
+    updateSection('continue', { loading: true, result: null })
+    try {
+      const { data } = await apiContinueWriting(textContent.slice(-200), textContent)
+      if (data.ok) {
+        updateSection('continue', { loading: false, result: data.continuation, expanded: true })
+      } else {
+        updateSection('continue', { loading: false, result: null, expanded: true })
+        alert('AI 服务暂时不可用：' + data.error)
+      }
+    } catch {
+      updateSection('continue', { loading: false, result: null })
+      alert('网络错误：无法连接到后端服务')
+    }
+  }
+
   const publishArticle = async () => {
     if (!title.trim() || !textContent.trim()) {
       alert('请填写标题和正文内容')
       return
     }
     try {
-      const { result } = await apiCreateArticle({
-        title,
-        content,
-        author: author || '匿名作者',
-        ai_summary: savedSummary,
-        ai_tags: savedTags,
-      })
+      const articleData = isEditing && articleId
+        ? await apiUpdateArticle(articleId, {
+            title,
+            content,
+            author: author || '匿名作者',
+            ai_summary: savedSummary,
+            ai_tags: savedTags,
+          })
+        : await apiCreateArticle({
+            title,
+            content,
+            author: author || '匿名作者',
+            ai_summary: savedSummary,
+            ai_tags: savedTags,
+          })
+      
+      const result = articleData.result
       if (result.ok && result.article?.id) {
-        alert('保存成功！即将跳转到文章详情')
+        alert(isEditing ? '更新成功！即将跳转到文章详情' : '保存成功！即将跳转到文章详情')
         router.push(`/article/${result.article.id}`)
       } else {
         alert('保存失败：' + (result.error || '未知错误'))
@@ -380,6 +489,62 @@ export default function WritePage() {
             </div>
           </div>
         )}
+
+        {type === 'titles' && (
+          <div className="space-y-2">
+            <p className="text-xs text-ink-500">点击标题可直接采纳</p>
+            {section.result.map((t, i) => (
+              <button
+                key={i}
+                onClick={() => setTitle(t)}
+                className="w-full text-left p-2.5 rounded-lg bg-white border border-ink-100 hover:border-accent-300 hover:bg-accent-50 transition-colors"
+              >
+                <span className="text-sm font-medium text-ink-700">{t}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {type === 'polish' && (
+          <div className="space-y-2">
+            <p className="text-xs text-ink-500">点击采纳可替换选中的句子</p>
+            {section.result.map((s, i) => (
+              <div key={i} className="p-2.5 rounded-lg bg-white border border-ink-100 space-y-1.5">
+                <p className="text-sm text-ink-700 italic border-l-2 border-accent-400 pl-2">
+                  {s.polished}
+                </p>
+                <p className="text-xs text-ink-500 flex items-start gap-1">
+                  <Lightbulb className="w-3 h-3 mt-0.5" />
+                  {s.reason}
+                </p>
+                <button
+                  onClick={() => {
+                    const newContent = content.replace(selectedSection, s.polished)
+                    setContent(newContent)
+                  }}
+                  className="text-xs text-accent-600 hover:underline"
+                >
+                  + 采纳此修改
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {type === 'continue' && (
+          <div className="space-y-2">
+            <p className="text-xs text-ink-500">AI 提供续写思路，你自己来写</p>
+            {section.result.map((d, i) => (
+              <div key={i} className="p-2.5 rounded-lg bg-white border border-ink-100 space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-accent-100 text-accent-600">{d.direction}</span>
+                </div>
+                <p className="text-sm text-ink-700">{d.hint}</p>
+                <p className="text-xs text-ink-400">关键词：{d.keywords?.join('、')}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     )
   }
@@ -413,7 +578,7 @@ export default function WritePage() {
         <div>
           <h1 className="text-2xl font-bold text-ink-800 flex items-center gap-2">
             <Sparkles className="w-6 h-6 text-accent-500" />
-            AI 写作工作台
+           写作工作台
           </h1>
           <p className="text-ink-500 text-sm mt-1">
             查资料、找灵感、被提问 —— 让 AI 做你的写作研究员
@@ -469,7 +634,7 @@ export default function WritePage() {
               </label>
 
               {showPreview ? (
-                <div className="prose prose-lg max-w-none p-4 bg-ink-50 rounded-lg border border-ink-200">
+                <div className="article-content p-4 bg-ink-50 rounded-lg border border-ink-200 min-h-[300px]">
                   {content ? (
                     <div dangerouslySetInnerHTML={{ __html: content }} />
                   ) : (
@@ -727,6 +892,90 @@ export default function WritePage() {
               </button>
             </div>
             <SectionResult type="analyze" section={sections.analyze} />
+          </div>
+
+          <div className="card space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-accent-600">
+                <FileText className="w-5 h-5" />
+                <h2 className="font-semibold">⑦ 标题生成</h2>
+              </div>
+              {sections.titles.result && (
+                <button onClick={() => toggleSection('titles')} className="text-ink-400 hover:text-ink-600">
+                  {sections.titles.expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+              )}
+            </div>
+            <div className="space-y-2.5">
+              <label className="text-sm text-ink-600">
+                AI 根据文章内容生成<strong>5个不同风格的备选标题</strong>：
+              </label>
+              <button onClick={generateTitles} disabled={sections.titles.loading || (!textContent.trim() && !title.trim())} className="btn-secondary w-full justify-center disabled:opacity-60 text-sm">
+                {sections.titles.loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Lightbulb className="w-4 h-4" />
+                )}
+                生成标题
+              </button>
+            </div>
+            <SectionResult type="titles" section={sections.titles} />
+          </div>
+
+          <div className="card space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-accent-600">
+                <Tag className="w-5 h-5" />
+                <h2 className="font-semibold">⑧ 句子润色</h2>
+              </div>
+              {sections.polish.result && (
+                <button onClick={() => toggleSection('polish')} className="text-ink-400 hover:text-ink-600">
+                  {sections.polish.expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+              )}
+            </div>
+            <div className="space-y-2.5">
+              <label className="text-sm text-ink-600">
+                <strong>选中一段文字</strong>，AI 给出 3 种润色方案：
+              </label>
+              <button onClick={polishSentence} disabled={sections.polish.loading || !textContent.trim()} className="btn-secondary w-full justify-center disabled:opacity-60 text-sm">
+                {sections.polish.loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Sparkles className="w-4 h-4" />
+                )}
+                润色选中文字
+              </button>
+            </div>
+            <SectionResult type="polish" section={sections.polish} />
+          </div>
+
+          <div className="card space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-accent-600">
+                <Hand className="w-5 h-5" />
+                <h2 className="font-semibold">⑨ 写作思路</h2>
+              </div>
+              {sections.continue.result && (
+                <button onClick={() => toggleSection('continue')} className="text-ink-400 hover:text-ink-600">
+                  {sections.continue.expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+              )}
+            </div>
+            <div className="space-y-2.5">
+              <label className="text-sm text-ink-600">
+                写不下去了？AI 根据你已写的内容<strong>提供3个续写思路方向</strong>：
+              </label>
+              <button onClick={continueWriting} disabled={sections.continue.loading || !textContent.trim()} className="btn-secondary w-full justify-center disabled:opacity-60 text-sm">
+                {sections.continue.loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <BrainCircuit className="w-4 h-4" />
+                )}
+                拓展思路
+              </button>
+            </div>
+            <SectionResult type="continue" section={sections.continue} />
           </div>
         </div>
       </div>

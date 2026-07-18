@@ -10,6 +10,13 @@ import {
 import { useAuth } from '@/context/AuthContext'
 import { getArticles, deleteArticle } from '@/utils/api'
 
+const stripHtml = (html) => {
+  if (typeof window === 'undefined') return html || ''
+  const tmp = document.createElement('div')
+  tmp.innerHTML = html
+  return tmp.textContent || tmp.innerText || ''
+}
+
 export default function MyPostsPage() {
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
@@ -54,7 +61,7 @@ export default function MyPostsPage() {
   const stats = {
     total: posts.length,
     withAI: posts.filter((p) => p.ai_summary || p.ai_tags?.length > 0).length,
-    totalWords: posts.reduce((s, p) => s + (p.content?.length || 0), 0),
+    totalWords: posts.reduce((s, p) => s + stripHtml(p.content).length, 0),
   }
 
   const filtered = posts.filter((p) => {
@@ -151,14 +158,14 @@ export default function MyPostsPage() {
               </button>
             ))}
           </div>
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" />
+          <div className="flex items-center gap-2 w-full sm:w-64">
+            <Search className="w-4 h-4 text-ink-400" />
             <input
               type="text"
               placeholder="搜索文章标题..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="input-base pl-10 !py-2 text-sm"
+              className="input-base flex-1 !py-2 text-sm"
             />
           </div>
         </div>
@@ -215,7 +222,7 @@ export default function MyPostsPage() {
                   </p>
                 ) : (
                   <p className="text-sm text-ink-500 line-clamp-2">
-                    {post.content?.replace(/[#>*\-\n]/g, ' ').slice(0, 120) || '（无内容预览）'}
+                    {stripHtml(post.content).slice(0, 120) || '（无内容预览）'}
                   </p>
                 )}
                 <div className="flex items-center gap-4 mt-3 text-xs text-ink-400">
@@ -223,7 +230,7 @@ export default function MyPostsPage() {
                     <CalendarDays className="w-3.5 h-3.5" />
                     {new Date(post.created_at).toLocaleDateString('zh-CN')}
                   </span>
-                  <span>{post.content?.length || 0} 字</span>
+                  <span>{stripHtml(post.content).length || 0} 字</span>
                 </div>
               </div>
 

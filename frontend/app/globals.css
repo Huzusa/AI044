@@ -39,21 +39,51 @@ body {
 }
 
 .article-content blockquote {
-  border-left: 4px solid #d6d0c1;
-  padding-left: 1rem;
-  margin: 1.5rem 0;
-  color: #645a47;
-  font-style: italic;
+  border-left: 4px solid #c0392b !important;
+  padding-left: 1em !important;
+  margin: 1em 0 !important;
+  color: #666 !important;
+  font-style: italic !important;
+}
+
+.article-content blockquote p {
+  margin-bottom: 0.5rem !important;
 }
 
 .article-content ul, .article-content ol {
-  margin: 1rem 0;
-  padding-left: 1.5rem;
+  margin: 1rem 0 !important;
+  padding-left: 1.5rem !important;
+}
+
+.article-content ul {
+  list-style-type: disc !important;
+}
+
+.article-content ol {
+  list-style-type: decimal !important;
 }
 
 .article-content li {
-  margin: 0.5rem 0;
-  line-height: 1.8;
+  margin: 0.5rem 0 !important;
+  line-height: 1.8 !important;
+}
+
+.article-content hr {
+  border: none !important;
+  border-top: 1px solid #d6d0c1 !important;
+  margin: 1.5rem 0 !important;
+}
+
+.article-content strong {
+  font-weight: 700 !important;
+}
+
+.article-content em {
+  font-style: italic !important;
+}
+
+.article-content u {
+  text-decoration: underline !important;
 }
 
 .article-content code {

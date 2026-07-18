@@ -110,11 +110,7 @@ export default function LoginPage() {
             </Link>
           </p>
 
-          <div className="pt-4 border-t border-ink-100">
-            <p className="text-xs text-center text-ink-400">
-              演示账号：<span className="font-mono">demo</span> / <span className="font-mono">demo123</span>
-            </p>
-          </div>
+         
         </div>
       </div>
     </div>

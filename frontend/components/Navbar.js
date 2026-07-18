@@ -10,6 +10,7 @@ export default function Navbar() {
   const router = useRouter()
   const { user, logout } = useAuth()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
 
   const handleLogout = () => {
     logout()
@@ -57,7 +58,7 @@ export default function Navbar() {
               <div className="relative">
                 <button
                   className="flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-ink-50 transition-colors"
-                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
                 >
                   <div className="w-8 h-8 rounded-full bg-accent-100 flex items-center justify-center">
                     <User className="w-4 h-4 text-accent-600" />
@@ -66,6 +67,42 @@ export default function Navbar() {
                     {user.username}
                   </span>
                 </button>
+
+                {userMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-ink-100 py-1 z-50">
+                    <Link
+                      href="/my/posts"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-ink-700 hover:bg-ink-50"
+                    >
+                      <BookOpen className="w-4 h-4" /> 我的文章
+                    </Link>
+                    <Link
+                      href="/my/bookshelf"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-ink-700 hover:bg-ink-50"
+                    >
+                      <BookOpen className="w-4 h-4" /> 我的书架
+                    </Link>
+                    <Link
+                      href="/my/settings"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-ink-700 hover:bg-ink-50"
+                    >
+                      <User className="w-4 h-4" /> 个人设置
+                    </Link>
+                    <hr className="border-ink-100 my-1" />
+                    <button
+                      onClick={() => {
+                        setUserMenuOpen(false)
+                        handleLogout()
+                      }}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                    >
+                      <LogOut className="w-4 h-4" /> 退出登录
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <>

@@ -123,3 +123,27 @@ export async function analyzeArticle(title, content) {
   })
   return { res, data }
 }
+
+export async function generateTitles(title, content) {
+  const { res, data } = await apiRequest('/ai/generate-titles', {
+    method: 'POST',
+    body: JSON.stringify({ title, content }),
+  })
+  return { res, data }
+}
+
+export async function polishSentence(sentence, context = '') {
+  const { res, data } = await apiRequest('/ai/polish-sentence', {
+    method: 'POST',
+    body: JSON.stringify({ sentence, context }),
+  })
+  return { res, data }
+}
+
+export async function continueWriting(content, context = '') {
+  const { res, data } = await apiRequest('/ai/continue-writing', {
+    method: 'POST',
+    body: JSON.stringify({ content, context }),
+  })
+  return { res, data }
+}

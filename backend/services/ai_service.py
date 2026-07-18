@@ -204,6 +204,60 @@ suggestions 至少3条，每条具体、可操作。"""
     return None
 
 
+def generate_titles(title: str, content: str):
+    """根据文章内容生成5个备选标题"""
+    content = _clean_html(content)
+    system = """你是一位资深编辑。请根据文章内容，生成5个不同风格的备选标题。
+要求：
+1. 每个标题都要抓住文章的核心意象或情感
+2. 风格多样化：文艺风、悬念式、简洁直白、诗意、哲理
+3. 不要太长，控制在12字以内
+4. 严格返回 JSON：{"titles": ["标题1", "标题2", ...]}"""
+    user = f"原标题：{title}\n\n正文内容：\n{content[:500]}\n\n请生成5个备选标题。"
+    result = _call_llm(system, user)
+    if result and 'titles' in result:
+        return result['titles']
+    return None
+
+
+def polish_sentence(sentence: str, context: str = ''):
+    """针对一句话提供润色建议（不改变原意，只优化表达）"""
+    context = _clean_html(context)
+    system = """你是一位写作教练。请针对用户给出的句子，提供3种润色方案。
+要求：
+1. 不改变原意，只优化表达节奏、用词选择、句式结构
+2. 每条建议包含：
+   - "polished": 润色后的句子
+   - "reason": 修改理由（为什么这么改更好）
+3. 风格可以不同：简洁版、文艺版、口语版
+4. 严格返回 JSON：{"suggestions": [...]}"""
+    user = f"上下文（供参考）：\n{context}\n\n需要润色的句子：\n{sentence}\n\n请提供3种润色方案。"
+    result = _call_llm(system, user)
+    if result and 'suggestions' in result:
+        return result['suggestions']
+    return None
+
+
+def continue_writing(content: str, context: str = ''):
+    """根据已写内容，提供3个续写思路方向（不写成品，只给方向）"""
+    content = _clean_html(content)
+    context = _clean_html(context)
+    system = """你是一位写作教练，不是代写者。请根据用户已写的内容，提供3个续写思路方向。
+要求：
+1. 每个思路包含：
+   - "direction": 续写方向名称（如：闪回记忆、引入新角色、环境隐喻...）
+   - "hint": 具体怎么写的提示（告诉作者从哪个角度切入、用什么手法）
+   - "keywords": 3-4个关键词参考
+2. 不给成品句子，只给方向和提示
+3. 保持用户的语气和风格
+4. 严格返回 JSON：{"directions": [...]}"""
+    user = f"全文上下文（供参考）：\n{context}\n\n用户刚写完的部分：\n{content}\n\n请提供3个续写思路方向。"
+    result = _call_llm(system, user)
+    if result and 'directions' in result:
+        return result['directions']
+    return None
+
+
 # ============ 以下为无 KEY 时的 MOCK 兜底 ============
 
 def _mock_outline(kw):

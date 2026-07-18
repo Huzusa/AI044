@@ -10,6 +10,13 @@ import {
 import { useAuth } from '@/context/AuthContext'
 import { getArticles } from '@/utils/api'
 
+const stripHtml = (html) => {
+  if (typeof window === 'undefined') return html || ''
+  const tmp = document.createElement('div')
+  tmp.innerHTML = html
+  return tmp.textContent || tmp.innerText || ''
+}
+
 const accentColors = [
   'bg-red-50 border-red-200 text-red-700',
   'bg-orange-50 border-orange-200 text-orange-700',
@@ -72,7 +79,7 @@ export default function BookshelfPage() {
   const stats = {
     total: posts.length,
     withAI: posts.filter((p) => p.ai_summary || p.ai_tags?.length > 0).length,
-    totalWords: posts.reduce((s, p) => s + (p.content?.length || 0), 0),
+    totalWords: posts.reduce((s, p) => s + stripHtml(p.content).length, 0),
   }
 
   const filtered = posts.filter((p) => {
@@ -146,14 +153,14 @@ export default function BookshelfPage() {
         </div>
 
         <div className="card !p-4">
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" />
+          <div className="flex items-center gap-2 max-w-md">
+            <Search className="w-4 h-4 text-ink-400" />
             <input
               type="text"
               placeholder="搜索文章标题..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="input-base pl-10 !py-2"
+              className="input-base flex-1 !py-2"
             />
           </div>
         </div>
@@ -207,7 +214,7 @@ export default function BookshelfPage() {
                         })}
                       </div>
                       <div className="mt-1 text-xs opacity-60">
-                        {post.content?.length || 0} 字
+                        {stripHtml(post.content).length || 0} 字
                       </div>
                     </div>
 

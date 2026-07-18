@@ -76,3 +76,74 @@ def get_current_user():
         return jsonify({'ok': True, 'user': user.to_dict()})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@auth_bp.route('/update-profile', methods=['PUT'])
+@jwt_required()
+def update_profile():
+    try:
+        username = get_jwt_identity()
+        user = User.query.filter_by(username=username).first()
+        if not user:
+            return jsonify({'ok': False, 'error': '用户不存在'}), 404
+
+        body = request.get_json(force=True, silent=True) or {}
+        new_username = (body.get('username') or '').strip()
+        new_email = (body.get('email') or '').strip()
+
+        if new_username and new_username != user.username:
+            if len(new_username) < 3:
+                return jsonify({'ok': False, 'error': '用户名至少需要3个字符'}), 400
+            if User.query.filter_by(username=new_username).first():
+                return jsonify({'ok': False, 'error': '该用户名已被注册'}), 400
+            user.username = new_username
+
+        if new_email != user.email:
+            if new_email and User.query.filter_by(email=new_email).first():
+                return jsonify({'ok': False, 'error': '该邮箱已被注册'}), 400
+            user.email = new_email
+
+        db.session.commit()
+
+        return jsonify({
+            'ok': True,
+            'message': '个人信息更新成功',
+            'user': user.to_dict(),
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@auth_bp.route('/change-password', methods=['PUT'])
+@jwt_required()
+def change_password():
+    try:
+        username = get_jwt_identity()
+        user = User.query.filter_by(username=username).first()
+        if not user:
+            return jsonify({'ok': False, 'error': '用户不存在'}), 404
+
+        body = request.get_json(force=True, silent=True) or {}
+        current_password = body.get('currentPassword', '')
+        new_password = body.get('newPassword', '')
+
+        if not current_password or not new_password:
+            return jsonify({'ok': False, 'error': '请输入当前密码和新密码'}), 400
+
+        if not user.check_password(current_password):
+            return jsonify({'ok': False, 'error': '当前密码不正确'}), 401
+
+        if len(new_password) < 6:
+            return jsonify({'ok': False, 'error': '新密码至少需要6个字符'}), 400
+
+        user.set_password(new_password)
+        db.session.commit()
+
+        return jsonify({
+            'ok': True,
+            'message': '密码修改成功',
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'ok': False, 'error': str(e)}), 500

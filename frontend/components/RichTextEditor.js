@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -33,6 +34,17 @@ export default function RichTextEditor({
       }
     },
   })
+
+  useEffect(() => {
+    if (editor && content) {
+      const currentContent = editor.getHTML()
+      const normalizedContent = content.replace(/\n/g, '').replace(/\r/g, '')
+      const normalizedCurrent = currentContent.replace(/\n/g, '').replace(/\r/g, '')
+      if (normalizedContent !== normalizedCurrent) {
+        editor.commands.setContent(content, false)
+      }
+    }
+  }, [editor, content])
 
   return (
     <div className={`border border-ink-200 rounded-lg overflow-hidden shadow-sm ${className}`}>
