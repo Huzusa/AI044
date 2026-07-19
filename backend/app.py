@@ -11,6 +11,22 @@ from routes.ai import ai_bp
 from routes.auth import auth_bp
 
 
+db_initialized = False
+
+def _init_database(app):
+    global db_initialized
+    try:
+        with app.app_context():
+            _create_database_if_not_exists()
+            db.create_all()
+            _seed_demo_data_if_empty()
+        db_initialized = True
+        app.logger.info('✓ 数据库初始化成功')
+    except Exception as e:
+        db_initialized = False
+        app.logger.error(f'✗ 数据库初始化失败: {str(e)}')
+
+
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
@@ -33,10 +49,7 @@ def create_app():
     db.init_app(app)
     JWTManager(app)
 
-    with app.app_context():
-        _create_database_if_not_exists()
-        db.create_all()
-        _seed_demo_data_if_empty()
+    _init_database(app)
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(articles_bp, url_prefix='/api/articles')
@@ -48,7 +61,7 @@ def create_app():
             'ok': True,
             'service': '墨染 · AI写作工坊 后端',
             'version': '1.0.0',
-            'docs': '/  (项目根目录的 API_DOC.md)',
+            'database': 'connected' if db_initialized else 'disconnected',
         })
 
     @app.errorhandler(404)
