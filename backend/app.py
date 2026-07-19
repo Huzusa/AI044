@@ -12,18 +12,23 @@ from routes.auth import auth_bp
 
 
 db_initialized = False
+db_init_error = None
 
 def _init_database(app):
-    global db_initialized
+    global db_initialized, db_init_error
+    if db_initialized:
+        return
     try:
         with app.app_context():
             _create_database_if_not_exists()
             db.create_all()
             _seed_demo_data_if_empty()
         db_initialized = True
+        db_init_error = None
         app.logger.info('✓ 数据库初始化成功')
     except Exception as e:
         db_initialized = False
+        db_init_error = str(e)
         app.logger.error(f'✗ 数据库初始化失败: {str(e)}')
 
 
@@ -49,7 +54,9 @@ def create_app():
     db.init_app(app)
     JWTManager(app)
 
-    _init_database(app)
+    @app.before_request
+    def before_request():
+        _init_database(app)
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(articles_bp, url_prefix='/api/articles')
@@ -62,6 +69,7 @@ def create_app():
             'service': '墨染 · AI写作工坊 后端',
             'version': '1.0.0',
             'database': 'connected' if db_initialized else 'disconnected',
+            'error': db_init_error,
         })
 
     @app.errorhandler(404)
