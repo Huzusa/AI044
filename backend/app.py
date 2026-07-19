@@ -96,7 +96,7 @@ def _create_database_if_not_exists():
     
     encoded_password = urllib.parse.quote_plus(password)
     
-    connect_args = {}
+    connect_args = {'ssl_mode': 'REQUIRED'}
     if mysql_ssl_ca:
         import os
         ssl_cert_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), mysql_ssl_ca)
