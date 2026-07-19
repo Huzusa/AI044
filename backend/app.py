@@ -140,7 +140,8 @@ def _seed_demo_data_if_empty():
     print('✓ 已插入 2 篇演示文章（首次启动）')
 
 
+app = create_app()
+
 if __name__ == '__main__':
-    app = create_app()
     port = int(app.config.get('FLASK_PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=True)
