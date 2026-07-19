@@ -31,12 +31,7 @@ class Config:
     if mysql_ssl_ca:
         SSL_CERT_PATH = os.path.join(_basedir, mysql_ssl_ca)
         SQLALCHEMY_ENGINE_OPTIONS['connect_args'] = {
-            'ssl_mode': 'REQUIRED',
-            'ssl': {'ca': SSL_CERT_PATH}
-        }
-    else:
-        SQLALCHEMY_ENGINE_OPTIONS['connect_args'] = {
-            'ssl_mode': 'REQUIRED'
+            'ssl_ca': SSL_CERT_PATH
         }
 
     JSON_AS_ASCII = False

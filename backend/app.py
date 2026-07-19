@@ -96,11 +96,11 @@ def _create_database_if_not_exists():
     
     encoded_password = urllib.parse.quote_plus(password)
     
-    connect_args = {'ssl_mode': 'REQUIRED'}
+    connect_args = {}
     if mysql_ssl_ca:
         import os
         ssl_cert_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), mysql_ssl_ca)
-        connect_args['ssl'] = {'ca': ssl_cert_path}
+        connect_args['ssl_ca'] = ssl_cert_path
     
     engine = create_engine(
         f'mysql+pymysql://{user}:{encoded_password}@{host}:{port}/',
