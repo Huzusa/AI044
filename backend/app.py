@@ -28,7 +28,7 @@ def _init_database(app):
         app.logger.info('✓ 数据库初始化成功')
     except Exception as e:
         db_initialized = False
-        db_init_error = str(e)
+        db_init_error = f'数据库连接失败: {str(e)}'
         app.logger.error(f'✗ 数据库初始化失败: {str(e)}')
 
 
@@ -85,6 +85,7 @@ def create_app():
 
 
 def _create_database_if_not_exists():
+    import urllib.parse
     from sqlalchemy import create_engine, text
     db_name = current_app.config['MYSQL_DB']
     host = current_app.config['MYSQL_HOST']
@@ -93,6 +94,8 @@ def _create_database_if_not_exists():
     password = current_app.config['MYSQL_PASSWORD']
     mysql_ssl_ca = current_app.config.get('MYSQL_SSL_CA', '')
     
+    encoded_password = urllib.parse.quote_plus(password)
+    
     connect_args = {}
     if mysql_ssl_ca:
         import os
@@ -100,7 +103,7 @@ def _create_database_if_not_exists():
         connect_args['ssl'] = {'ca': ssl_cert_path}
     
     engine = create_engine(
-        f'mysql+pymysql://{user}:{password}@{host}:{port}/',
+        f'mysql+pymysql://{user}:{encoded_password}@{host}:{port}/',
         connect_args=connect_args
     )
     

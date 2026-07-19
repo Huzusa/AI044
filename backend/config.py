@@ -1,4 +1,5 @@
 import os
+import urllib.parse
 from dotenv import load_dotenv
 
 _basedir = os.path.abspath(os.path.dirname(__file__))
@@ -15,9 +16,10 @@ class Config:
     MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD', '')
     MYSQL_DB = os.environ.get('MYSQL_DB', 'inkscribe')
 
+    encoded_password = urllib.parse.quote_plus(MYSQL_PASSWORD)
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         'DATABASE_URL',
-        f'mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}'
+        f'mysql+pymysql://{MYSQL_USER}:{encoded_password}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}'
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
