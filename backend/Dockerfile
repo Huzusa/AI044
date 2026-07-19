@@ -19,4 +19,4 @@ ENV FLASK_APP=app.py
 ENV FLASK_ENV=production
 ENV PORT=80
 
-CMD ["gunicorn", "--bind", "0.0.0.0:80", "--workers", "2", "--timeout", "120", "app:app"]
+CMD ["python", "-m", "flask", "run", "--host", "0.0.0.0", "--port", "80"]
