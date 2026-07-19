@@ -19,7 +19,7 @@ class Config:
     encoded_password = urllib.parse.quote_plus(MYSQL_PASSWORD)
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         'DATABASE_URL',
-        f'mysql+pymysql://{MYSQL_USER}:{encoded_password}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}'
+        f'mysql+mysqlconnector://{MYSQL_USER}:{encoded_password}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}'
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     

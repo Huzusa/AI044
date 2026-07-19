@@ -103,7 +103,7 @@ def _create_database_if_not_exists():
         connect_args['ssl_ca'] = ssl_cert_path
     
     engine = create_engine(
-        f'mysql+pymysql://{user}:{encoded_password}@{host}:{port}/',
+        f'mysql+mysqlconnector://{user}:{encoded_password}@{host}:{port}/',
         connect_args=connect_args
     )
     
