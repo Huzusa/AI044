@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 import Link from 'next/link'
 import { Sparkles, PenLine, BookOpen, BrainCircuit, Puzzle, MessageSquareQuote } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
@@ -9,10 +10,11 @@ export default function HomePage() {
   const router = useRouter()
   const { user } = useAuth()
 
-  if (user) {
-    router.push('/my/posts')
-    return null
-  }
+  useEffect(() => {
+    if (user) {
+      router.push('/my/posts')
+    }
+  }, [user, router])
 
   const features = [
     {
